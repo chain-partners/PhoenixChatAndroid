@@ -36,10 +36,13 @@ android {
     }
 }
 
+Properties properties = new Properties()
+properties.load(project.rootProject.file('local.properties').newDataInputStream())
+def phxDir = properties.getProperty('phx.dir')
+
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
     compile 'com.android.support:appcompat-v7:22.1.1'
-    compile('com.github.eoinsha:JavaPhoenixChannels:0.2') {
-        exclude module: 'groovy-all'
-    }
+    compile 'com.fasterxml.jackson.core:jackson-databind:2.9.4'
+    compile files(phxDir + "/KotlinPhoenixChannel-1.0-SNAPSHOT.jar")
 }
