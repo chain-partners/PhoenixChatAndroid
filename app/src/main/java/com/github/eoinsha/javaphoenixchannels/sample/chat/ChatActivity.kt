@@ -128,6 +128,10 @@ class ChatActivity : AppCompatActivity(), PhoenixSocketEventListener {
   }
 
   override fun onMessage(text: String?) {
+
+  }
+
+  override fun onOpen() {
     showToast("Connected")
     channel = socket.channel(topic)
 
@@ -179,9 +183,5 @@ class ChatActivity : AppCompatActivity(), PhoenixSocketEventListener {
       messageField!!.setText("")
     }
     runOnUiThread { btnSend!!.isEnabled = true }
-  }
-
-  override fun onOpen() {
-    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
   }
 }
