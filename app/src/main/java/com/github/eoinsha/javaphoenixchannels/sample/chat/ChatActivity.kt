@@ -3,18 +3,16 @@ package com.github.eoinsha.javaphoenixchannels.sample.chat
 import android.media.RingtoneManager
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
-import android.support.v7.widget.Toolbar
 import android.util.Log
 import android.widget.Button
 import android.widget.EditText
-import android.widget.ListView
 import android.widget.Toast
 import com.fasterxml.jackson.core.JsonProcessingException
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.NullNode
+import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import com.github.eoinsha.javaphoenixchannels.sample.util.Utils
-import org.phoenixframework.PhoenixResponse
-import org.phoenixframework.PhoenixResponseCallback
+import kotlinx.android.synthetic.main.activity_chat.*
 import org.phoenixframework.channel.Channel
 import org.phoenixframework.socket.PhoenixSocketEventListener
 import org.phoenixframework.socket.Socket
@@ -38,13 +36,13 @@ class ChatActivity : AppCompatActivity(), PhoenixSocketEventListener {
     super.onCreate(savedInstanceState)
     setContentView(R.layout.activity_chat)
 
-    val toolbar = findViewById(R.id.chat_toolbar) as Toolbar
+    val toolbar = chat_toolbar
     setSupportActionBar(toolbar)
 
-    btnSend = findViewById(R.id.button_send) as Button
+    btnSend = button_send
     btnSend!!.isEnabled = false
-    messageField = findViewById(R.id.message_text) as EditText
-    val messagesListView = findViewById(R.id.messages_list_view) as ListView
+    messageField = message_text
+    val messagesListView = messages_list_view
     messagesListView.divider = null
     messagesListView.dividerHeight = 0
     listAdapter = MessageArrayAdapter(this, android.R.layout.simple_list_item_1)
@@ -54,9 +52,14 @@ class ChatActivity : AppCompatActivity(), PhoenixSocketEventListener {
     url = utils.url
     topic = utils.topic
 
-    socket = Socket(url)
-    socket.registerPhoenixSocketListener(this)
+    socket = Socket(endpointUri = url)
+    socket.registerEventListener(this)
     socket.connect()
+  }
+
+  override fun onDestroy() {
+    super.onDestroy()
+    socket.unregisterEventListener(this)
   }
 
   private fun sendMessage() {
@@ -66,15 +69,19 @@ class ChatActivity : AppCompatActivity(), PhoenixSocketEventListener {
       payload.put("body", messageBody)
       val pushDate = Date()
       try {
-        it.pushRequest("new:msg", payload.toString())
-            .receive("ok") {
-              val message = ChatMessage()
-              message.body = messageBody
-              message.insertedDate = pushDate
-              message.isFromMe = true
-              Log.i(TAG, "MESSAGE: " + message)
-              addToList(message)
-            }
+        it.pushRequest(
+            event = "new:msg",
+            payload = payload.toString(),
+            success = { message ->
+              if (message?.status == "ok") {
+                val sentChat = ChatMessage()
+                sentChat.body = messageBody
+                sentChat.insertedDate = pushDate
+                sentChat.isFromMe = true
+                Log.i(TAG, "MESSAGE: $sentChat")
+                addToList(sentChat)
+              }
+            })
       } catch (e: IOException) {
         Log.e(TAG, "Failed to send", e)
         showToast("Failed to send")
@@ -110,71 +117,69 @@ class ChatActivity : AppCompatActivity(), PhoenixSocketEventListener {
     runOnUiThread { listAdapter!!.add(message) }
   }
 
-  companion object {
-    private val TAG = ChatActivity::class.java.simpleName
-  }
+  /**
+   * Implements [PhoenixSocketEventListener].
+   */
 
-  override fun onClosed(code: Int?, reason: String?) {
+  override fun onClosed(socket: Socket, code: Int?, reason: String?) {
     showToast("Closed")
   }
 
-  override fun onClosing(code: Int?, reason: String?) {
-    TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+  override fun onClosing(socket: Socket, code: Int?, reason: String?) {
+    // does nothing.
   }
 
-  override fun onFailure(t: Throwable?) {
-    // TODO(changhee): Get reason.
+  override fun onFailure(socket: Socket, t: Throwable?) {
     handleTerminalError(t?.message ?: "")
   }
 
-  override fun onMessage(text: String?) {
-
+  override fun onMessage(socket: Socket, text: String?) {
+    // does nothing
   }
 
-  override fun onOpen() {
+  override fun onOpen(socket: Socket) {
     showToast("Connected")
     channel = socket.channel(topic)
 
     try {
-      channel!!.join().receive("ok") {
-        showToast("You have joined '$topic'")
-      }
-      channel!!.on("user:entered", object : PhoenixResponseCallback {
-        override fun onResponse(response: PhoenixResponse?) {
-          // TODO(changhee): Remove JsonNode
-          val user = response?.payload?.get("user")
-          if (user == null || user is NullNode) {
-            showToast("An anonymous user entered")
-          } else {
-            showToast("User '" + user.toString() + "' entered")
-          }
-        }
-
-        override fun onFailure(throwable: Throwable?, response: PhoenixResponse?) {
-
-        }
-      }).on("new:msg", object : PhoenixResponseCallback {
-        override fun onResponse(response: PhoenixResponse?) {
-          val message: ChatMessage
-          try {
-            message = objectMapper.treeToValue(response?.payload, ChatMessage::class.java)
-            Log.i(TAG, "MESSAGE: " + message)
-            if (message.userId != null && message.userId != "SYSTEM") {
-              addToList(message)
-              notifyMessageReceived()
-            }
-          } catch (e: JsonProcessingException) {
-            onFailure(e)
-            Log.e(TAG, "Unable to parse message", e)
-          }
-        }
-
-        override fun onFailure(throwable: Throwable?, response: PhoenixResponse?) {
-
+      channel!!.join(success = { message ->
+        if (message?.status == "ok") {
+          showToast("You have joined '$topic'")
         }
       })
+      channel!!
+          .on("user:entered",
+              success = { response ->
+                val payload = with(response?.payload) {
+                  objectMapper.readTree(this)
+                }
+                val user = payload.get("user")
+                if (user == null || user is NullNode) {
+                  showToast("An anonymous user entered")
+                } else {
+                  showToast("User '$user' entered")
+                }
+              })
+          .on("new:msg",
+              success = { response ->
+                var chatMessage: ChatMessage
+                response?.payload?.let {
+                  try {
+                    chatMessage = objectMapper.readValue<ChatMessage>(it, jacksonTypeRef<ChatMessage>())
+                    Log.i(TAG, "MESSAGE: $chatMessage")
+                    if (chatMessage.userId != null && chatMessage.userId != "SYSTEM") {
+                      addToList(chatMessage)
+                      notifyMessageReceived()
+                      return@let
+                    }
+                  } catch (e: JsonProcessingException) {
+                    onFailure(socket, e)
+                    Log.e(TAG, "Unable to parse message", e)
+                  }
+                }
+              })
     } catch (e: Exception) {
-      Log.e(TAG, "Failed to join channel " + topic, e)
+      Log.e(TAG, "Failed to join channel $topic", e)
       handleTerminalError(e)
     }
 
@@ -183,5 +188,10 @@ class ChatActivity : AppCompatActivity(), PhoenixSocketEventListener {
       messageField!!.setText("")
     }
     runOnUiThread { btnSend!!.isEnabled = true }
+  }
+
+  companion object {
+
+    private val TAG = ChatActivity::class.java.simpleName
   }
 }
