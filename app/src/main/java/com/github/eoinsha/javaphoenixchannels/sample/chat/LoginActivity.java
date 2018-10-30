@@ -38,10 +38,10 @@ public class LoginActivity extends Activity  {
         utils = new Utils(getApplicationContext());
 
         // Set up the login form.
-        mUrlView = findViewById(R.id.url);
+        mUrlView = (EditText) findViewById(R.id.url);
         mUrlView.setText(utils.getUrl());
 
-        mTopicView = findViewById(R.id.topic);
+        mTopicView = (EditText) findViewById(R.id.topic);
         mTopicView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView textView, int id, KeyEvent keyEvent) {
