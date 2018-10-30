@@ -25,7 +25,7 @@ import java.net.URL;
 public class LoginActivity extends Activity  {
 
     // UI references.
-    private TextView mUrlView;
+    private EditText mUrlView;
     private EditText mTopicView;
 
     private Utils utils = null;
@@ -38,10 +38,10 @@ public class LoginActivity extends Activity  {
         utils = new Utils(getApplicationContext());
 
         // Set up the login form.
-        mUrlView = (TextView) findViewById(R.id.url);
+        mUrlView = findViewById(R.id.url);
         mUrlView.setText(utils.getUrl());
 
-        mTopicView = (EditText) findViewById(R.id.topic);
+        mTopicView = findViewById(R.id.topic);
         mTopicView.setOnEditorActionListener(new TextView.OnEditorActionListener() {
             @Override
             public boolean onEditorAction(TextView textView, int id, KeyEvent keyEvent) {
@@ -104,7 +104,7 @@ public class LoginActivity extends Activity  {
             // form field with an error.
             focusView.requestFocus();
         } else {
-            utils.storeChannelDetails(topic);
+            utils.storeChannelDetails(topic, url);
             final Intent intent = new Intent(this, ChatActivity.class);
             startActivity(intent);
         }

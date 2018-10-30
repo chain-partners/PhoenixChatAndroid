@@ -37,15 +37,13 @@
                 android:gravity="center_vertical"
                 android:orientation="vertical">
 
-                <TextView
+                <EditText
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textAppearance="?android:attr/textAppearanceMedium"
                     android:text="@string/default_url"
                     android:id="@+id/url"
                     android:layout_gravity="top|center_horizontal"
-                    android:foreground="@color/secondary_text"
-                    android:visibility="visible"
                     android:enabled="true" />
 
                 <EditText

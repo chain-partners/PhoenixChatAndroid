@@ -14,16 +14,18 @@ public class Utils {
     private static final String KEY_SHARED_PREF = "PHOENIX_CHAT_SAMPLE";
     private static final int KEY_MODE_PRIVATE = 0;
     private static final String KEY_TOPIC = "topic";
+    private static final String KEY_URL = "url";
 
     public Utils(Context context) {
         this.context = context;
         sharedPref = this.context.getSharedPreferences(KEY_SHARED_PREF, KEY_MODE_PRIVATE);
     }
 
-    public void storeChannelDetails(final String topic) {
-        Editor editor = sharedPref.edit();
-        editor.putString(KEY_TOPIC, topic);
-        editor.commit();
+    public void storeChannelDetails(final String topic, final String url) {
+        sharedPref.edit()
+            .putString(KEY_TOPIC, topic)
+            .putString(KEY_URL, url)
+            .commit();
     }
 
     public String getTopic() {
@@ -32,6 +34,7 @@ public class Utils {
     }
 
     public String getUrl() {
-        return context.getText(R.string.default_url).toString();
+        final String prevUrl = sharedPref.getString(KEY_URL, null);
+        return prevUrl != null ? prevUrl : context.getText(R.string.default_url).toString();
     }
 }
